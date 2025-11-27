@@ -20,7 +20,7 @@
       nabiki,
       nixpkgs,
     }:
-    nabiki nixpkgs (
+    nabiki.lib.mapAttrsNested nixpkgs.legacyPackages (
       pkgs:
       let
         treefmt = treefmt-nix.lib.evalModule pkgs {

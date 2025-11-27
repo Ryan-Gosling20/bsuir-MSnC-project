@@ -1,22 +1,23 @@
 {
   "nodes": {
-    "n": {
+    "nabiki": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
-        ]
+        ],
+        "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1759327109,
-        "narHash": "sha256-R6abzc+d6+2URWt0Msltst/Yj1gtJhYIhoDBAlsmgCs=",
+        "lastModified": 1764026669,
+        "narHash": "sha256-z4GN5ATOUazFYrwI4NWIvekDgXPJXjTT2T4QhL0hmCA=",
         "owner": "nadevko",
         "repo": "nabiki",
-        "rev": "f8d01a5da34568233739c1d2a9577f2486026f0d",
+        "rev": "02a3b11ae32d95f7e211aaf69678b3d218a57c40",
         "type": "github"
       },
       "original": {
         "owner": "nadevko",
-        "ref": "v1",
+        "ref": "v2-alpha",
         "repo": "nabiki",
         "type": "github"
       }
@@ -39,12 +40,33 @@
     },
     "root": {
       "inputs": {
-        "n": "n",
+        "nabiki": "nabiki",
         "nixpkgs": "nixpkgs",
-        "treefmt-nix": "treefmt-nix"
+        "treefmt-nix": "treefmt-nix_2"
       }
     },
     "treefmt-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nabiki",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1758728421,
+        "narHash": "sha256-ySNJ008muQAds2JemiyrWYbwbG+V7S5wg3ZVKGHSFu8=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "5eda4ee8121f97b218f7cc73f5172098d458f1d1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "treefmt-nix_2": {
       "inputs": {
         "nixpkgs": [
           "nixpkgs"
