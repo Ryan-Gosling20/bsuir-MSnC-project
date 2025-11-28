@@ -1,12 +1,13 @@
 <template>
   <div class="container">
     <h1>
-      Hello, <em>{{ user?.username ?? "Guest" }}</em>
+      Hello, <em>{{ displayName }}</em>
     </h1>
 
     <div v-if="!user">
+      <!-- register form -->
       <h2>Register</h2>
-      <form @submit.prevent="register">
+      <form @submit.prevent="onRegister">
         <input v-model="registerForm.username" placeholder="Username" />
         <input v-model="registerForm.email" placeholder="Email" type="email" />
         <input
@@ -16,96 +17,89 @@
         />
         <input
           v-model="registerForm.birthdate"
-          placeholder="Birthdate YYYY-MM-DD"
+          placeholder="Birthdate"
           type="date"
         />
-        <button type="submit">Register</button>
+        <button type="submit" :disabled="auth.loading.register">
+          Register
+        </button>
       </form>
 
+      <!-- login form -->
       <h2>Login</h2>
-      <form @submit.prevent="login">
+      <form @submit.prevent="onLogin">
         <input v-model="loginForm.email" placeholder="Email" type="email" />
         <input
           v-model="loginForm.password"
           placeholder="Password"
           type="password"
         />
-        <button type="submit">Login</button>
+        <button type="submit" :disabled="auth.loading.login">Login</button>
       </form>
     </div>
 
     <div v-else>
-      <button @click="logout">Logout</button>
-      <button @click="fetchMe">Refresh Me</button>
+      <button @click="onLogout" :disabled="auth.loading.logout">Logout</button>
+      <button @click="onRefresh" :disabled="auth.loading.refresh">
+        Refresh Me
+      </button>
     </div>
 
-    <div v-if="error" class="error">{{ error }}</div>
+    <div v-if="auth.error" class="error">{{ auth.error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { reactive, computed } from "vue";
+import { useAuth } from "~~/composables/useAuth";
 
-interface User {
-  id: string;
-  username: string;
-  email?: string;
-}
+const auth = useAuth();
 
-const user = ref<User | null>(null);
-const error = ref<string>("");
+const user = computed(() => auth.user.value);
+const displayName = computed(() => user.value?.username ?? "Guest");
 
-const registerForm = ref({
+const registerForm = reactive({
   username: "",
   email: "",
   password: "",
   birthdate: "",
 });
-const loginForm = ref({ email: "", password: "" });
+const loginForm = reactive({ email: "", password: "" });
 
-async function register() {
-  error.value = "";
+async function onRegister() {
   try {
-    const { data, error: fetchErr } = await useFetch("/api/register", {
-      method: "POST",
-      body: registerForm.value,
+    await auth.register({
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password,
+      birthdate: registerForm.birthdate,
     });
-    if (fetchErr.value) throw fetchErr.value;
-    user.value = data.value as User;
-  } catch (e: any) {
-    error.value = e?.statusMessage || e?.message || "Registration failed";
-  }
+    registerForm.username = "";
+    registerForm.email = "";
+    registerForm.password = "";
+    registerForm.birthdate = "";
+  } catch {}
 }
 
-async function login() {
-  error.value = "";
+async function onLogin() {
   try {
-    const { data, error: fetchErr } = await useFetch("/api/login", {
-      method: "POST",
-      body: loginForm.value,
-    });
-    if (fetchErr.value) throw fetchErr.value;
-    user.value = data.value as User;
-  } catch (e: any) {
-    error.value = e?.statusMessage || e?.message || "Login failed";
-  }
+    await auth.login({ email: loginForm.email, password: loginForm.password });
+    loginForm.email = "";
+    loginForm.password = "";
+  } catch {}
 }
 
-async function logout() {
-  await useFetch("/api/logout", { method: "POST" });
-  user.value = null;
-}
-
-async function fetchMe() {
+async function onLogout() {
   try {
-    const { data } = await useFetch("/api/me");
-    user.value = data.value as User;
-  } catch {
-    user.value = null;
-  }
+    await auth.logout();
+  } catch {}
 }
 
-fetchMe();
+async function onRefresh() {
+  await auth.fetchMe();
+}
+
+void auth.fetchMe();
 </script>
 
 <style scoped>

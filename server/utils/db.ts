@@ -25,4 +25,14 @@ CREATE TABLE IF NOT EXISTS users (
 `,
 ).run();
 
+db.prepare(
+  `
+CREATE TABLE IF NOT EXISTS sessions (
+  jti TEXT PRIMARY KEY,
+  userId TEXT NOT NULL,
+  expiresAt TEXT NOT NULL
+)
+`,
+).run();
+
 export default db;
