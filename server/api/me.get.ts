@@ -1,24 +1,15 @@
-import jwt from 'jsonwebtoken'
-import { getCookie } from 'h3'
-import { findUserByUsername } from '../utils/users'
+import db, { User } from "../utils/db";
+import { getUserIdFromToken } from "../utils/auth";
 
 export default defineEventHandler(async (event) => {
-    const config = useRuntimeConfig()
-    const secret = config.jwtSecret
-    if (!secret) throw createError({ statusCode: 500, statusMessage: 'JWT secret is not configured' })
+  const userId = getUserIdFromToken(event);
+  if (!userId)
+    throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
 
-    const token = getCookie(event, 'token')
-    if (!token) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-    }
+  const stmt = db.prepare("SELECT id, username, email FROM users WHERE id = ?");
+  const user = stmt.get(userId) as User | undefined;
+  if (!user)
+    throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
 
-    try {
-        const payload = jwt.verify(token as string, secret) as any
-        const user = findUserByUsername(payload.username)
-        if (!user) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-
-        return { id: user.id, username: user.username }
-    } catch (err) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-    }
-})
+  return user;
+});

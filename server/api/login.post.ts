@@ -1,36 +1,38 @@
-import { compare } from 'bcrypt'
-import jwt from 'jsonwebtoken'
-import { readBody, setCookie } from 'h3'
-import { findUserByEmail } from '../utils/users'
+import db, { User } from "../utils/db";
+import bcrypt from "bcrypt";
+import { readBody } from "h3";
+import { signToken, setTokenCookie } from "../utils/auth";
 
 export default defineEventHandler(async (event) => {
-    const body = (await readBody(event)) as Record<string, any> | null
-    const email = String(body?.email ?? '').trim().toLowerCase()
-    const password = String(body?.password ?? '')
+  const body = (await readBody(event)) as Record<string, any>;
+  const email = String(body?.email ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(body?.password ?? "");
 
-    if (!email || !password) {
-        throw createError({ statusCode: 400, statusMessage: 'Email and password are required' })
-    }
+  if (!email || !password)
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Email & password required",
+    });
 
-    const user = findUserByEmail(email)
-    if (!user) throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
+  const stmt = db.prepare("SELECT * FROM users WHERE email = ?");
+  const user = stmt.get(email) as User | undefined;
+  if (!user)
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Invalid credentials",
+    });
 
-    const ok = await compare(password, user.passwordHash)
-    if (!ok) throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok)
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Invalid credentials",
+    });
 
-    const config = useRuntimeConfig()
-    const secret = String(config.jwtSecret)
-    const token = jwt.sign({ sub: user.id, username: user.username }, secret as jwt.Secret, {
-        expiresIn: config.jwtExpiresIn ?? '1h'
-    } as jwt.SignOptions)
+  const token = signToken(user);
+  setTokenCookie(event, token);
 
-    setCookie(event, 'token', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 60 * 60
-    })
-
-    return { id: user.id, username: user.username, email: user.email }
-})
+  return { id: user.id, username: user.username, email: user.email };
+});

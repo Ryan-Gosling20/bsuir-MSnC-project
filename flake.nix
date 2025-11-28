@@ -19,7 +19,10 @@
       treefmt-nix,
       nabiki,
       nixpkgs,
-    }:
+    }@inputs:
+    let
+      private = final: prev: { inherit inputs; };
+    in
     nabiki.lib.mapAttrsNested nixpkgs.legacyPackages (
       pkgs:
       let
@@ -31,18 +34,15 @@
           programs.prettier.enable = true;
         };
       in
-      {
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            nodePackages.nodejs
-            pnpm
-          ];
-          shellHook = ''
-            echo ${pkgs.nodePackages.nodejs.version} > .nvmrc
-          '';
-        };
+      rec {
+        legacyPackages = pkgs.extend (_: _: packages);
+        packages = inputs.nabiki.lib.rebase self.overlays.default pkgs;
+        devShells = nabiki.lib.rebase (nabiki.lib.readDevShellsOverlay { } private ./pkgs) pkgs;
         formatter = treefmt.config.build.wrapper;
         checks.treefmt = treefmt.config.build.check self;
       }
-    );
+    )
+    // {
+      overlays.default = nabiki.lib.readPackagesOverlay { } private ./pkgs;
+    };
 }

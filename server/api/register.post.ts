@@ -1,69 +1,82 @@
-import { hash } from 'bcrypt'
-import jwt from 'jsonwebtoken'
-import { readBody, setCookie } from 'h3'
-import { createUser, findUserByUsername, findUserByEmail } from '../utils/users'
+import db, { User } from "../utils/db";
+import bcrypt from "bcrypt";
+import { readBody } from "h3";
+import { signToken, setTokenCookie } from "../utils/auth";
 
 function isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function parseDate(dateStr: string): Date | null {
-    const d = new Date(dateStr)
-    return isNaN(d.getTime()) ? null : d
-}
-
-function yearsBetween(d1: Date, d2: Date) {
-    return Math.floor((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 export default defineEventHandler(async (event) => {
-    const body = (await readBody(event)) as Record<string, any> | null
-    const username = String(body?.username ?? '').trim()
-    const email = String(body?.email ?? '').trim().toLowerCase()
-    const password = String(body?.password ?? '')
-    const birthdate = String(body?.birthdate ?? '').trim()
+  const body = (await readBody(event)) as Record<string, any>;
+  const username = String(body?.username ?? "").trim();
+  const email = String(body?.email ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(body?.password ?? "");
+  const birthdate = String(body?.birthdate ?? "").trim();
 
-    if (!username || !email || !password || !birthdate) {
-        throw createError({ statusCode: 400, statusMessage: 'Required fields: username, email, password, birthdate' })
-    }
+  if (!username || !email || !password || !birthdate)
+    throw createError({ statusCode: 400, statusMessage: "Required fields" });
+  if (!isValidEmail(email))
+    throw createError({ statusCode: 400, statusMessage: "Invalid email" });
+  if (password.length < 8)
+    throw createError({ statusCode: 400, statusMessage: "Password too short" });
 
-    if (!isValidEmail(email)) throw createError({ statusCode: 400, statusMessage: 'Invalid email' })
-    if (password.length < 8) throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 chars' })
+  const bd = parseDate(birthdate);
+  if (!bd)
+    throw createError({ statusCode: 400, statusMessage: "Invalid birthdate" });
+  const age = Math.floor(
+    (new Date().getTime() - bd.getTime()) / (1000 * 60 * 60 * 24 * 365.25),
+  );
+  if (age < 13)
+    throw createError({
+      statusCode: 400,
+      statusMessage: "Must be at least 13 years old",
+    });
 
-    const bd = parseDate(birthdate)
-    if (!bd) throw createError({ statusCode: 400, statusMessage: 'Invalid birthdate format' })
+  const stmt = db.prepare("SELECT * FROM users WHERE email = ?");
+  const existing = stmt.get(email as any) as User | undefined;
+  if (existing)
+    throw createError({
+      statusCode: 409,
+      statusMessage: "Email already registered",
+    });
 
-    const age = yearsBetween(new Date(), bd)
-    if (age < 13) throw createError({ statusCode: 400, statusMessage: 'You must be at least 13 years old' })
+  const passwordHash = await bcrypt.hash(password, 10);
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const user: User = {
+    id,
+    username,
+    email,
+    passwordHash,
+    birthdate: bd.toISOString().slice(0, 10),
+    createdAt,
+  };
 
-    if (findUserByUsername(username)) throw createError({ statusCode: 409, statusMessage: 'Username already taken' })
-    if (findUserByEmail(email)) throw createError({ statusCode: 409, statusMessage: 'Email already registered' })
+  db.prepare(
+    `
+    INSERT INTO users (id, username, email, passwordHash, birthdate, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `,
+  ).run(
+    user.id,
+    user.username,
+    user.email,
+    user.passwordHash,
+    user.birthdate,
+    user.createdAt,
+  );
 
-    const passwordHash = await hash(password, 10)
+  const token = signToken(user);
+  setTokenCookie(event, token);
 
-    const user = createUser({
-        id: crypto.randomUUID(),
-        username,
-        email,
-        passwordHash,
-        birthdate: bd.toISOString().slice(0, 10),
-        createdAt: new Date().toISOString()
-    })
-
-    const config = useRuntimeConfig()
-    const secret = String(config.jwtSecret)
-    const token = jwt.sign({ sub: user.id, username: user.username }, secret as jwt.Secret, {
-        expiresIn: config.jwtExpiresIn ?? '1h'
-    } as jwt.SignOptions)
-
-    setCookie(event, 'token', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 60 * 60
-    })
-
-    event.node.res.statusCode = 201
-    return { id: user.id, username: user.username, email: user.email }
-})
+  event.node.res.statusCode = 201;
+  return { id: user.id, username: user.username, email: user.email };
+});
