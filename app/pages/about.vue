@@ -70,15 +70,6 @@
                 <div class="search-wrap">
                     <input type="text" class="search-input" placeholder="Search" />
                 </div>
-                <!-- Иконка корзины -->
-                <NuxtLink v-if="user" to="/profile" class="cart-icon-link">
-                    <div class="cart-icon">
-                        <img src="/assets/cart.png" alt="Cart" class="cart-icon-img" />
-                        <span v-if="cartItemCount > 0" class="cart-badge">
-                            {{ cartItemCount > 9 ? "9+" : cartItemCount }}
-                        </span>
-                    </div>
-                </NuxtLink>
                 <NuxtLink v-if="!user" to="/register" class="btn join">JOIN NOW</NuxtLink>
                 <NuxtLink v-if="!user" to="/login" class="btn outline">LOG IN</NuxtLink>
                 <NuxtLink v-if="user" to="/profile" class="btn outline">PROFILE</NuxtLink>
@@ -86,13 +77,6 @@
 
             <!-- Mobile icons -->
             <div class="mobile-icons" aria-hidden="true">
-                <!-- Иконка корзины на мобильном -->
-                <NuxtLink v-if="user" to="/profile" class="icon-btn" aria-label="cart">
-                    <img src="/assets/cart.png" alt="" />
-                    <span v-if="mobileCartItemCount > 0" class="mobile-cart-badge">
-                        {{ mobileCartItemCount > 9 ? "9+" : mobileCartItemCount }}
-                    </span>
-                </NuxtLink>
                 <button class="icon-btn" aria-label="notifications">
                     <img src="/assets/bell.png" alt="" />
                 </button>
@@ -196,23 +180,6 @@
     const auth = useAuth();
     const user = computed(() => auth.user.value);
     const showCatalogMenu = ref(false);
-
-    // Получаем данные корзины для отображения количества товаров
-    const { data: cartData } = useFetch("/api/cart", {
-        immediate: true,
-    });
-
-    // Подсчет товаров в корзине
-    const cartItemCount = computed(() => {
-        if (!cartData.value || !Array.isArray(cartData.value)) return 0;
-        return cartData.value.reduce((total, item) => total + item.amount, 0);
-    });
-
-    // Для мобильного вида (отдельный счетчик для стилизации)
-    const mobileCartItemCount = computed(() => {
-        if (!cartData.value || !Array.isArray(cartData.value)) return 0;
-        return cartData.value.reduce((total, item) => total + item.amount, 0);
-    });
 
     // Функции для управления меню каталога
     function toggleCatalogMenu() {
@@ -340,45 +307,6 @@
         font-weight: 500;
     }
 
-    /* Иконка корзины */
-    .cart-icon-link {
-        display: flex;
-        align-items: center;
-        text-decoration: none;
-        position: relative;
-    }
-
-    .cart-icon {
-        position: relative;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .cart-icon-img {
-        width: 24px;
-        height: 24px;
-        object-fit: contain;
-    }
-
-    .cart-badge {
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        background: #ff3b30;
-        color: white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        font-size: 12px;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
     .logo-center {
         position: absolute;
         left: 45%;
@@ -451,35 +379,18 @@
         align-items: center;
     }
 
-        .mobile-icons .icon-btn {
-            position: relative;
-            background: transparent;
-            border: none;
-            padding: 6px;
-            cursor: pointer;
+    .icon-btn {
+        background: transparent;
+        border: none;
+        padding: 6px;
+        cursor: pointer;
+    }
+
+        .icon-btn img {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
         }
-
-    .mobile-cart-badge {
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        background: #ff3b30;
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        font-size: 11px;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .icon-btn img {
-        width: 22px;
-        height: 22px;
-        object-fit: contain;
-    }
 
     /* About section styling */
     .about-content-section {
